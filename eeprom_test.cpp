@@ -51,6 +51,8 @@
     
 #define byte unsigned char
 
+#define eeprom_size 1024
+
 template <typename TR> bool eeprom_read(const unsigned int address, const TR *data, unsigned int n);
 template <typename TW> bool eeprom_write(const unsigned int address, const TW data, unsigned int n);
 
@@ -67,7 +69,7 @@ fstream eeprom;//  ("C:\\temp\\Test.bin", ios::in | ios::out | ios::binary);
 
 
 Alarm makeRandomAlarm(time_t prev_timestamp){
-    uint8_t rnd_alarm=rand() % 22;
+    uint16_t rnd_alarm=rand() % 22;
     time_t  rnd_timestamp=prev_timestamp+rand()%7200;
     Alarm alarm;
     alarm.serial=next_serial;
@@ -78,12 +80,12 @@ Alarm makeRandomAlarm(time_t prev_timestamp){
 }
 
 int main(int argc, char** argv) {
-    
-     
+         
     time_t result = std::time(nullptr);
-    eeprom=fstream("C:\\temp\\Test.bin",   ios::out | ios::binary);
+    eeprom=fstream("test.bin",   ios::out | ios::binary);
           
-#define arraysize 500
+#define arraysize 80
+
     Alarm alarm[arraysize];
     time_t tm=result;
     for (uint16_t i=0;i<arraysize;i++){
@@ -94,9 +96,18 @@ int main(int argc, char** argv) {
     printf("Alarms written to file.");
     printf("**********************************************\n");
     for (uint16_t i=0;i<arraysize;i++){
-        //printf("Alarm Serial: %d, Timestamp: %u, Event %d: \n",(uint8_t)alarm[i].serial, alarm[i].timestamp,(uint8_t)alarm[i].alarmevent);         
+        printf("Alarm Serial: %d, Timestamp: %u, Event %d: \n",(uint16_t)alarm[i].serial, alarm[i].timestamp,(uint8_t)alarm[i].alarmevent);         
     }
-    eeprom_write(0,&alarm[0],arraysize);
+    eeprom_write(0,alarm,arraysize);
+    //fill remaining byts wth 0xFF
+    uint16_t bdata=arraysize*sizeof(Alarm);
+    printf("\nSize of Alarm structure: %u\n",sizeof(Alarm));
+    uint16_t rem=eeprom_size-bdata;
+    uint8_t remdata[rem];
+    for (uint16_t i=0;i<rem;i++){
+        remdata[i]=0xFF;              
+    }
+    eeprom_write(bdata,remdata,rem);
     eeprom.close();
     eeprom=fstream("C:\\temp\\Test.bin",   ios::in | ios::binary);
     printf("----------------------------------------------");
@@ -105,12 +116,12 @@ int main(int argc, char** argv) {
     Alarm alarmR[arraysize];    
     eeprom_read(0,&alarmR[0],arraysize);
     for (uint16_t i=0;i<arraysize;i++){
-        //printf("Alarm Serial: %d, Timestamp: %u, Event %d: \n",(uint8_t)alarmR[i].serial, alarmR[i].timestamp,(uint8_t)alarmR[i].alarmevent);         
+        printf("Alarm Serial: %d, Timestamp: %u, Event %d: \n",(uint16_t)alarmR[i].serial, alarmR[i].timestamp,(uint8_t)alarmR[i].alarmevent);         
     }    
     printf("----------------------------------------------\n");
-    Alarm alarm3;
-    eeprom_read(15,&alarm3,1);
-    printf("Alarm Serial: %d, Timestamp: %u, Event %d: \n",(uint8_t)alarm3.serial, alarm3.timestamp,(uint8_t)alarm3.alarmevent);
+    //Alarm alarm3;
+    //eeprom_read(15,&alarm3,1);
+    //printf("Alarm Serial: %d, Timestamp: %u, Event %d: \n",(uint8_t)alarm3.serial, alarm3.timestamp,(uint8_t)alarm3.alarmevent);
     //printf("Timestamp read: %u\n",alarm3.timestamp);
     eeprom.close();
     
@@ -119,15 +130,16 @@ int main(int argc, char** argv) {
 
 template <typename TR> bool eeprom_read(const unsigned int address, const TR *data, unsigned int n) {
      
-    eeprom.seekg(address*sizeof(TR));
-    eeprom.read((char*)data, sizeof(TR)*n); 
+    eeprom.seekg(address*sizeof(*data));
+    eeprom.read((char*)data, sizeof(*data)*n); 
     return true;
 }
 
 
 template <typename TW> bool eeprom_write(const unsigned int address, const TW data, unsigned int n) {
-    eeprom.seekg(address*sizeof(TW));    
-    eeprom.write((char*) data, sizeof(TW)*n*3);
+    eeprom.seekg(address*sizeof(*data));    
+    eeprom.write((char*) data, sizeof(*data)*n);
+    printf("\nSize of Alarm structure: %u\n",sizeof(*data)*n);
     return true;
 }
 
